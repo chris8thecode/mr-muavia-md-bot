@@ -979,13 +979,26 @@ class BotSession {
 }
 
 io.on('connection', (socket) => {
+    // SECURITY: userId arrives from the client and is used to build filesystem
+    // paths (auth_info/<userId>) and to key sessions. Never trust it raw —
+    // allow only a safe charset so a malicious client cannot escape the auth
+    // directory (path traversal) or pollute the session map.
+    const sanitizeUserId = (raw) => {
+        const s = String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+        return s.length >= 3 ? s : null;
+    };
+
     socket.on('set-user', (userId) => {
+        userId = sanitizeUserId(userId);
+        if (!userId) return;
         userSockets[userId] = socket.id;
         if (!sessions[userId]) sessions[userId] = new BotSession(userId);
         sessions[userId].sendConnectionStatus();
     });
 
     socket.on('pair-request', async ({ userId, number }) => {
+        userId = sanitizeUserId(userId);
+        if (!userId) return;
         if (sessions[userId]) {
             if (!botData.statusSettings[userId]) {
                 // By default all commands are off as per user request
@@ -1003,6 +1016,8 @@ io.on('connection', (socket) => {
     });
 
     socket.on('logout', async (userId) => {
+        userId = sanitizeUserId(userId);
+        if (!userId) return;
         if (sessions[userId]) {
             if (sessions[userId].sock) {
                 try { await sessions[userId].sock.logout(); } catch (e) {}
