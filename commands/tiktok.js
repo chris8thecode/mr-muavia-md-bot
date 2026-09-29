@@ -1,5 +1,6 @@
 const axios = require('axios');
 const settings = require('../settings');
+const { cobaltFetch } = require('../lib/cobalt');
 
 const TIKTOK_URL_PATTERN = /https?:\/\/(?:www\.|vm\.|vt\.|m\.)?tiktok\.com\//i;
 
@@ -19,15 +20,29 @@ async function tiktokCommand(sock, from, msg, q) {
             await sock.sendMessage(from, { react: { text: emoji, key: msg.key } });
         }
 
-        const res = await axios.get('https://tikwm.com/api/', {
-            params: { url: query },
-            timeout: 20000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
+        let videoUrl = null;
 
-        const videoUrl = res?.data?.data?.play;
-        if (res?.data?.code !== 0 || !videoUrl) {
-            throw new Error(res?.data?.msg || 'TikTok API returned no video');
+        // Primary: Cobalt API (actively maintained, no key needed)
+        try {
+            const media = await cobaltFetch(query);
+            const video = media.find(m => m.type === 'video') || media[0];
+            videoUrl = video && video.url;
+        } catch (cobaltErr) {
+            console.error('TikTok cobalt source failed:', cobaltErr.message);
+        }
+
+        // Fallback: tikwm (legacy source, kept in case Cobalt is down)
+        if (!videoUrl) {
+            const res = await axios.get('https://tikwm.com/api/', {
+                params: { url: query },
+                timeout: 20000,
+                headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
+
+            videoUrl = res?.data?.data?.play;
+            if (res?.data?.code !== 0 || !videoUrl) {
+                throw new Error(res?.data?.msg || 'TikTok API returned no video');
+            }
         }
 
         await sock.sendMessage(from, { video: { url: videoUrl }, caption: `✅ TIKTOK DOWNLOADED BY ${settings.botName.toUpperCase()}` }, { quoted: msg });
