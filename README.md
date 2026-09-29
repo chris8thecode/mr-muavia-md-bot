@@ -34,7 +34,8 @@ This project is Heroku-ready:
 
 Routes exposed by the web dashboard: `/` and `/connect` (pairing UI), `/dashboard` (same UI),
 `/api/health` (liveness check), `/api/status` (aggregate, non-sensitive bot status - no keys,
-numbers, or session data are ever returned by these endpoints).
+numbers, or session data are ever returned by these endpoints), `/api/config` (public branding:
+bot name, owner display number, channel URL, logo path - also never carries secrets).
 
 ## Setup (Termux)
 
