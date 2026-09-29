@@ -32,6 +32,24 @@ This project is Heroku-ready:
 4. After the first deploy, set `APP_URL` to your Heroku app's URL so the built-in anti-sleep
    ping pings the right address.
 
+## Free hosting options — honest comparison
+
+This bot needs: Node.js 20+, a **long-running process**, a persistent WebSocket (socket.io),
+and a **persistent filesystem** for `auth_info/` sessions. Not every "free hosting" platform
+qualifies:
+
+| Platform | Works? | Catch |
+|---|---|---|
+| **Vercel / Netlify / Cloudflare Workers** | ❌ No | Serverless only — no long-running process, no persistent WebSocket/filesystem. Baileys cannot run here. Do not try. |
+| **Render (free tier)** | ⚠️ Testing only | Sleeps after ~15 min idle + ephemeral filesystem → WhatsApp session is lost on sleep; you must **re-pair after every sleep/restart**. A `render.yaml` is included for one-click testing. |
+| **Koyeb (free tier)** | ⚠️ Testing only | Same sleep/ephemeral caveats as Render free. |
+| **Railway** | ⚠️ Trial only | Free trial credits run out; needs a paid plan afterwards. |
+| **Oracle Cloud "Always Free" VPS** | ✅ Yes, 24/7 | 2 VMs free forever with persistent disk. Needs a credit card for signup verification and basic Linux setup (Node 20 + PM2). Best free option for real 24/7. |
+| **Termux (spare Android phone)** | ✅ Yes, 24/7 | Free, persistent storage, this project's primary target (see Setup below). Needs the phone powered on. |
+
+**Recommendation:** use Render free to *test* the dashboard/pairing today; move to Oracle
+Cloud free VPS or Termux for actual 24/7 operation.
+
 Routes exposed by the web dashboard: `/` and `/connect` (pairing UI), `/dashboard` (same UI),
 `/api/health` (liveness check), `/api/status` (aggregate, non-sensitive bot status - no keys,
 numbers, or session data are ever returned by these endpoints), `/api/config` (public branding:
