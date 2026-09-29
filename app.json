@@ -1,0 +1,90 @@
+{
+  "name": "MR Muavia MD BOT",
+  "description": "MR Muavia MD BOT - WhatsApp Automation Bot with Baileys, AI, downloaders and Islamic auto-posting.",
+  "repository": "",
+  "logo": "https://i.ibb.co/GyZMhVd/botdp.jpg",
+  "keywords": ["whatsapp", "bot", "baileys", "node"],
+  "env": {
+    "BOT_NAME": {
+      "description": "Display name for the bot.",
+      "value": "MR Muavia MD BOT"
+    },
+    "OWNER_NAME": {
+      "description": "Owner display name shown in the menu/footer.",
+      "value": "MR MUAVIA"
+    },
+    "OWNER_NUMBER": {
+      "description": "Owner WhatsApp number in international format, no + or spaces (e.g. 923001234567).",
+      "required": true
+    },
+    "OWNER_DISPLAY_NUMBER": {
+      "description": "Owner number in local display format.",
+      "required": false
+    },
+    "WELCOME_MESSAGE": {
+      "description": "Welcome line shown in the .menu output.",
+      "value": "welcome MUAVIA MD"
+    },
+    "LOGO_URL": {
+      "description": "Bot logo/branding image URL used in the menu.",
+      "value": "https://i.ibb.co/GyZMhVd/botdp.jpg"
+    },
+    "CHANNEL_URL": {
+      "description": "Public WhatsApp channel invite link shown in the menu.",
+      "required": false
+    },
+    "TELEGRAM_BOT_TOKEN": {
+      "description": "Optional - only needed to deliver pairing codes via a Telegram bot.",
+      "required": false
+    },
+    "OPENAI_API_KEY": {
+      "description": "Optional - required only for the .ai command to work.",
+      "required": false
+    },
+    "AI_BASE_URL": {
+      "description": "OpenAI-compatible API base URL.",
+      "value": "https://api.openai.com/v1"
+    },
+    "AI_MODEL": {
+      "description": "Model name used by the .ai command.",
+      "value": "gpt-3.5-turbo"
+    },
+    "GIPHY_API_KEY": {
+      "description": "Optional - has a public fallback key if left blank.",
+      "required": false
+    },
+    "TENOR_API_KEY": {
+      "description": "Required only for .emojimix.",
+      "required": false
+    },
+    "YOUTUBE_API_KEY": {
+      "description": "Required only for .islamic video auto-posting.",
+      "required": false
+    },
+    "DEFAULT_CITY": {
+      "description": "Default city for Islamic prayer-time reminders.",
+      "value": "Lahore"
+    },
+    "DEFAULT_COUNTRY": {
+      "description": "Default country for Islamic prayer-time reminders.",
+      "value": "Pakistan"
+    },
+    "DEFAULT_TIMEZONE": {
+      "description": "Default IANA timezone for Islamic scheduling.",
+      "value": "Asia/Karachi"
+    },
+    "APP_URL": {
+      "description": "Public URL of this deployed instance, used only for the built-in anti-sleep ping. Set this to your Heroku app URL after the first deploy.",
+      "required": false
+    }
+  },
+  "buildpacks": [
+    { "url": "heroku/nodejs" }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  }
+}
