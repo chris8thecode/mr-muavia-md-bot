@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { cobaltFetch } = require('../lib/cobalt');
 let igdl;
 try {
     ({ igdl } = require('ruhend-scraper'));
@@ -73,6 +74,7 @@ async function instaCommand(sock, from, msg, q) {
         }
 
         const sources = [
+            { name: 'cobalt', run: () => cobaltFetch(query) },
             { name: 'ruhend-scraper', run: () => fetchWithRuhend(query) },
             { name: 'Vreden', run: () => fetchWithVreden(query) }
         ];
