@@ -2,6 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const settings = require('../settings');
+const { cobaltFetch } = require('../lib/cobalt');
 
 async function facebookCommand(sock, chatId, message) {
     try {
@@ -36,6 +37,14 @@ async function facebookCommand(sock, chatId, message) {
             }
         } catch {
             // ignore resolution errors; use original url
+        }
+
+        // Primary: Cobalt API (actively maintained, no key needed)
+        async function fetchFromCobalt(u) {
+            const media = await cobaltFetch(u);
+            const video = media.find(m => m.type === 'video') || media[0];
+            if (video && video.url) return { fbvid: video.url, title: 'Facebook Video' };
+            throw new Error('Cobalt returned no downloadable video');
         }
 
         // Primary: Siputzx API
@@ -76,6 +85,7 @@ async function facebookCommand(sock, chatId, message) {
 
         // Try each source against the resolved URL, then the original URL, in order
         const sources = [
+            { name: 'Cobalt', run: fetchFromCobalt },
             { name: 'Siputzx', run: fetchFromSiputzx },
             { name: 'NexOracle', run: fetchFromNexoracle }
         ];
