@@ -1,0 +1,35 @@
+# Render deployment for MR MUAVIA MD BOT (FREE tier).
+#
+# HONEST LIMITATIONS — read before deploying here:
+# 1. Free web services SLEEP after ~15 minutes without incoming traffic.
+#    When the service sleeps, the WhatsApp connection drops.
+# 2. The free tier has an EPHEMERAL filesystem: auth_info/ (WhatsApp sessions),
+#    data/bot_data.json (settings) and tmp/ are WIPED on every restart/redeploy.
+#    => You WILL need to re-pair your WhatsApp number after every sleep/restart.
+#
+# This is fine for TESTING the dashboard and pairing flow for free.
+# For real 24/7 use, deploy on a host with a persistent disk instead:
+# Oracle Cloud "Always Free" VPS, any cheap VPS, or Termux on an Android phone
+# (see README.md "Setup (Termux)").
+#
+# NOTE: Vercel / Netlify / Cloudflare Workers CANNOT run this bot at all —
+# they are serverless-only (no long-running process, no persistent WebSocket,
+# no persistent filesystem), which Baileys requires.
+
+services:
+  - type: web
+    name: mr-muavia-md-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: OWNER_NUMBER
+        sync: false # set in Render dashboard: your WhatsApp number, e.g. 923200799496
+      - key: OWNER_DISPLAY_NUMBER
+        sync: false
+      - key: APP_URL
+        sync: false # set after first deploy: https://<your-service>.onrender.com
+      - key: COBALT_INSTANCES
+        sync: false
