@@ -11,7 +11,7 @@ module.exports = {
     welcomeMessage: process.env.WELCOME_MESSAGE || 'welcome MUAVIA MD',
 
     // Branding assets
-    logoUrl: process.env.LOGO_URL || 'https://i.ibb.co/GyZMhVd/botdp.jpg',
+    logoUrl: process.env.LOGO_URL || 'https://raw.githubusercontent.com/mrkhan9496/mr-muavia-md-bot/main/public/logo.jpg',
 
     // WhatsApp channel (do not hardcode a JID here - it is resolved at runtime from this URL,
     // see lib/channel.js). Only the public invite URL belongs in config.
