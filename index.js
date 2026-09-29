@@ -188,6 +188,20 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Public branding/config for the dashboard. Non-sensitive only: bot name,
+// owner display number, channel URL and logo path come from settings.js
+// (env-overridable). Never expose secrets, API keys or session data here.
+app.get('/api/config', (req, res) => {
+    res.json({
+        botName: settings.botName,
+        ownerName: settings.ownerName,
+        ownerDisplayNumber: settings.ownerDisplayNumber,
+        channelUrl: settings.channelUrl,
+        logoUrl: '/public/logo.jpg',
+        version: BOT_VERSION
+    });
+});
+
 // Aggregate, non-sensitive bot status: counts only, never numbers/JIDs/credentials/logs.
 app.get('/api/status', (req, res) => {
     const activeSessions = Object.values(sessions).filter(s => s.isConnected).length;
