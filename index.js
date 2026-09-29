@@ -778,8 +778,19 @@ class BotSession {
                                             try {
                                                 menuChannelContext = await getChannelContextInfo(this.sock);
                                             } catch (e) {}
+                                            // Menu image: prefer the local logo file (public/logo.jpg) so it never
+                                            // depends on an external image host; fall back to the remote logo URL.
+                                            let menuImage = null;
                                             try {
-                                                await this.sock.sendMessage(from, { image: { url: settings.logoUrl }, caption: menuText, ...menuChannelContext });
+                                                const localLogo = path.join(__dirname, 'public', 'logo.jpg');
+                                                if (fs.existsSync(localLogo)) menuImage = fs.readFileSync(localLogo);
+                                            } catch (e) {}
+                                            try {
+                                                if (menuImage) {
+                                                    await this.sock.sendMessage(from, { image: menuImage, caption: menuText, ...menuChannelContext });
+                                                } else {
+                                                    await this.sock.sendMessage(from, { image: { url: settings.logoUrl }, caption: menuText, ...menuChannelContext });
+                                                }
                                             } catch (e) {
                                                 try {
                                                     await this.sock.sendMessage(from, { text: menuText, ...menuChannelContext });
