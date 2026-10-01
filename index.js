@@ -276,6 +276,34 @@ const userSockets = {};
 const messageLogs = {}; 
 
 // Load existing sessions on startup
+// Restore a WhatsApp session from the SESSION_ID env var (for hosts with an
+// ephemeral filesystem, e.g. Render's free tier, where auth_info/ is wiped on
+// every restart). Format: base64 of JSON { userId, files: { name: base64 } }.
+// Generate it with: node gen-session-id.js <userId>
+// NEVER commit a SESSION_ID to git or share it — it grants full account access.
+function restoreSessionFromEnv() {
+    const sid = process.env.SESSION_ID;
+    if (!sid) return;
+    try {
+        const payload = JSON.parse(Buffer.from(sid, 'base64').toString('utf8'));
+        if (!payload.userId || !payload.files || typeof payload.files !== 'object') {
+            console.error('[System] SESSION_ID is malformed (expected {userId, files}). Skipping restore.');
+            return;
+        }
+        const userDir = path.join(AUTH_DIR, String(payload.userId));
+        fs.ensureDirSync(userDir);
+        let count = 0;
+        for (const [name, b64] of Object.entries(payload.files)) {
+            if (name.includes('/') || name.includes('\\') || name.includes('..')) continue; // no path traversal
+            fs.writeFileSync(path.join(userDir, name), Buffer.from(String(b64), 'base64'));
+            count++;
+        }
+        console.log(`[System] Restored ${count} session files for ${payload.userId} from SESSION_ID.`);
+    } catch (err) {
+        console.error('[System] Failed to restore SESSION_ID:', err.message);
+    }
+}
+
 async function loadExistingSessions() {
     try {
         const authDirs = await fs.readdir(AUTH_DIR);
@@ -1056,6 +1084,10 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     
+    // Restore WhatsApp session from SESSION_ID env var first (ephemeral hosts
+    // like Render free tier wipe auth_info/ on every restart).
+    restoreSessionFromEnv();
+
     // Auto-load sessions
     loadExistingSessions();
     
