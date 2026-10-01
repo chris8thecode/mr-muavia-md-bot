@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { trySources, instagramSources, sendVideoSmart, downloadToFile } = require('../lib/fallbackDownload');
+const { trySources, instagramSources, deliverVideoRobust, downloadToFile } = require('../lib/fallbackDownload');
 
 const MAX_ITEMS = 5;           // don't flood the chat on multi-image posts
 const MAX_MEDIA_BYTES = 60 * 1024 * 1024; // 60MB safety cap per item
@@ -40,6 +40,7 @@ async function instaCommand(sock, from, msg, q) {
 
         const toSend = items.slice(0, MAX_ITEMS);
         let sentAny = false;
+        let lastReason = '';
 
         for (const item of toSend) {
             try {
@@ -49,6 +50,7 @@ async function instaCommand(sock, from, msg, q) {
                     const len = parseInt(head.headers['content-length'] || '0', 10);
                     if (len > MAX_MEDIA_BYTES) {
                         console.log(`Skipping oversized Instagram media (${len} bytes): ${item.url}`);
+                        lastReason = 'file too large';
                         continue;
                     }
                 } catch (e) {
@@ -56,8 +58,8 @@ async function instaCommand(sock, from, msg, q) {
                 }
 
                 if (item.type === 'video') {
-                    // Smart send: direct URL first, server-side download as fallback
-                    await sendVideoSmart(sock, from, msg, item.url, '✅ Instagram Video');
+                    // Robust delivery: server download (3 attempts) -> buffer send -> URL fallback
+                    await deliverVideoRobust(sock, from, msg, item.url, '✅ Instagram Video');
                 } else {
                     try {
                         await sock.sendMessage(from, { image: { url: item.url }, caption: '✅ Instagram Image' }, { quoted: msg });
@@ -71,12 +73,13 @@ async function instaCommand(sock, from, msg, q) {
                 }
                 sentAny = true;
             } catch (sendErr) {
-                console.error('Failed to send Instagram media item:', sendErr.message);
+                lastReason = sendErr.message || 'unknown error';
+                console.error('Failed to send Instagram media item:', lastReason);
             }
         }
 
         if (!sentAny) {
-            await sock.sendMessage(from, { text: '❌ Found the post but could not deliver the media (files may be too large or the CDN link expired). Try again in a moment.' }, { quoted: msg });
+            await sock.sendMessage(from, { text: `❌ Found the post but could not deliver the media. Try again in a moment.${lastReason ? `\n(Reason: ${lastReason.slice(0, 120)})` : ''}` }, { quoted: msg });
         }
     } catch (e) {
         console.error('Instagram command error:', e.message);
