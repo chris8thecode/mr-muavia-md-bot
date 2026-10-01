@@ -1,16 +1,16 @@
 # Render deployment for MR MUAVIA MD BOT (FREE tier).
 #
-# HONEST LIMITATIONS — read before deploying here:
+# HOW 24/7 FREE HOSTING WORKS HERE:
 # 1. Free web services SLEEP after ~15 minutes without incoming traffic.
-#    When the service sleeps, the WhatsApp connection drops.
-# 2. The free tier has an EPHEMERAL filesystem: auth_info/ (WhatsApp sessions),
-#    data/bot_data.json (settings) and tmp/ are WIPED on every restart/redeploy.
-#    => You WILL need to re-pair your WhatsApp number after every sleep/restart.
-#
-# This is fine for TESTING the dashboard and pairing flow for free.
-# For real 24/7 use, deploy on a host with a persistent disk instead:
-# Oracle Cloud "Always Free" VPS, any cheap VPS, or Termux on an Android phone
-# (see README.md "Setup (Termux)").
+#    => Add a free uptime monitor (UptimeRobot / cron-job.org) pinging
+#       https://<your-service>.onrender.com/api/health every 10-14 minutes.
+#       730 hrs/month of uptime fits inside the 750 free instance-hours.
+# 2. The free tier has an EPHEMERAL filesystem: auth_info/ is WIPED on every
+#    restart/redeploy.
+#    => Set the SESSION_ID env var (see below). On every startup the bot
+#       restores the WhatsApp session from it — no re-pairing needed.
+#       Generate it with: node gen-session-id.js <your-number>
+#       (run once where the bot is paired, e.g. Termux).
 #
 # NOTE: Vercel / Netlify / Cloudflare Workers CANNOT run this bot at all —
 # they are serverless-only (no long-running process, no persistent WebSocket,
@@ -25,6 +25,8 @@ services:
     startCommand: node index.js
     healthCheckPath: /api/health
     envVars:
+      - key: SESSION_ID
+        sync: false # paste output of: node gen-session-id.js <your-number> — keeps WhatsApp logged in across restarts. KEEP SECRET.
       - key: OWNER_NUMBER
         sync: false # set in Render dashboard: your WhatsApp number, e.g. 923200799496
       - key: OWNER_DISPLAY_NUMBER
