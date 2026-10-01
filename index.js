@@ -98,7 +98,8 @@ const commands = {
     truth: require('./commands/truth'),
     dare: require('./commands/dare'),
     riddle: require('./commands/riddle'),
-    wyr: require('./commands/wyr')
+    wyr: require('./commands/wyr'),
+    channelstatus: require('./commands/channelstatus')
 };
 
 
@@ -953,6 +954,7 @@ class BotSession {
                                         case 'dare': await commands.dare(this.sock, from, msg); break;
                                         case 'riddle': await commands.riddle(this.sock, from, msg); break;
                                         case 'wyr': case 'wouldyourather': await commands.wyr(this.sock, from, msg); break;
+                                        case 'channelstatus': case 'chstatus': await commands.channelstatus(this.sock, from, msg); break;
                                         case 'pair': await pairCommand(this.sock, from, msg, isOwner, args, sessions, BotSession); break;
                                         case 'setprefix': await setprefixCommand(this.sock, from, msg, isAdmin, botData, saveBotData, this.userId, args); break;
                                         case 'islamic': case 'islamicstatus': case 'islamictest':
