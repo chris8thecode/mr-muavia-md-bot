@@ -828,12 +828,6 @@ class BotSession {
                                                            `┃ 💬 ${toBold(settings.welcomeMessage)}\n` +
                                                            `╰━━━━━━━━━━━━━━━━━━┈⊷\n\n` +
                                                            menuSections.join('\n\n') + '\n\n' +
-                                                           `🤖 ${toBold("𝗔𝗰𝘁𝗶𝘃𝗲 𝗙𝗲𝗮𝘁𝘂𝗿𝗲:")}\n` +
-                                                           `• ${toBold("𝗔𝗜:")} ${this.aiEnabled ? '✅' : '❌'}\n` +
-                                                           `• ${toBold("𝗔𝘂𝘁𝗼-𝗥𝗲𝗮𝗰𝘁:")} ${this.autoReact ? '✅' : '❌'}\n` +
-                                                           `• ${toBold("𝗔𝗻𝘁𝗶-𝗗𝗲𝗹𝗲𝘁𝗲:")} ${botData.antiDelete[this.userId] ? '✅' : '❌'}\n` +
-                                                           `• ${toBold("𝗔𝘂𝘁𝗼-𝗥𝗲𝗽𝗹𝘆:")} ${botData.autoReplySettings?.[this.userId] ? '✅' : '❌'}\n` +
-                                                           `• ${toBold("𝗔𝘂𝘁𝗼-𝗦𝘁𝗮𝘁𝘂𝘀:")} ${(botData.statusSettings[this.userId] && botData.statusSettings[this.userId].autoStatus) ? '✅' : '❌'}\n\n` +
                                                            `🔗 ${toBold("𝗖𝗛𝗔𝗡𝗡𝗘𝗟:")}\n` +
                                                            `> *${settings.channelUrl}*\n` +
                                                            `⚡ ${toBold("𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬: " + settings.ownerName.toUpperCase())}`;
