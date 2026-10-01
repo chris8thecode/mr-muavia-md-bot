@@ -211,6 +211,7 @@ app.get('/api/status', (req, res) => {
         uptimeSeconds: Math.floor((Date.now() - SERVER_START_TIME) / 1000),
         activeSessions,
         totalSessions: Object.keys(sessions).length,
+        memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
         features: {
             islamicAutoPost: true,
             aiAssistant: !!process.env.OPENAI_API_KEY,
