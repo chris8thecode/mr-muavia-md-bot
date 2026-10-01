@@ -80,7 +80,24 @@ const commands = {
     tag: require('./commands/tagextra').tagCommand,
     tagadmins: require('./commands/tagextra').tagadminsCommand,
     deleteMsg: require('./commands/tagextra').deleteMsgCommand,
-    autoreply: require('./commands/autoreply')
+    autoreply: require('./commands/autoreply'),
+
+    // Utility & fun commands (no API key needed)
+    calc: require('./commands/calc'),
+    flip: require('./commands/flip'),
+    roll: require('./commands/roll'),
+    '8ball': require('./commands/ball8'),
+    morse: require('./commands/morse'),
+    qr: require('./commands/qr'),
+    shorturl: require('./commands/shorturl'),
+    wiki: require('./commands/wiki'),
+    define: require('./commands/define'),
+    github: require('./commands/github'),
+    uptime: require('./commands/uptime'),
+    truth: require('./commands/truth'),
+    dare: require('./commands/dare'),
+    riddle: require('./commands/riddle'),
+    wyr: require('./commands/wyr')
 };
 
 
@@ -777,6 +794,19 @@ class BotSession {
                                             );
 
                                             menuSections.push(
+                                                `╭━━━〔 ${toBold("🛠️ 𝗨𝗧𝗜𝗟𝗜𝗧𝗬 & 𝗙𝗨𝗡")} 〕━━━┈⊷\n` +
+                                                `┃ ⋄ ${toBold(".calc (expression)")}\n` +
+                                                `┃ ⋄ ${toBold(".flip")} / ${toBold(".roll [NdM]")}\n` +
+                                                `┃ ⋄ ${toBold(".8ball (question)")}\n` +
+                                                `┃ ⋄ ${toBold(".morse (text)")}\n` +
+                                                `┃ ⋄ ${toBold(".qr (text)")} / ${toBold(".shorturl (link)")}\n` +
+                                                `┃ ⋄ ${toBold(".wiki (topic)")} / ${toBold(".define (word)")}\n` +
+                                                `┃ ⋄ ${toBold(".github (username)")} / ${toBold(".uptime")}\n` +
+                                                `┃ ⋄ ${toBold(".truth")} / ${toBold(".dare")} / ${toBold(".riddle")} / ${toBold(".wyr")}\n` +
+                                                `╰━━━━━━━━━━━━━━━━━━┈⊷`
+                                            );
+
+                                            menuSections.push(
                                                 `╭━━━〔 ${toBold("𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦")} 〕━━━┈⊷\n` +
                                                 `┃ ⋄ ${toBold(".autoreacts [on/off]")}\n` +
                                                 (isOwner ? `┃ ⋄ ${toBold(".autoread [on/off]")}\n` : '') +
@@ -906,6 +936,22 @@ class BotSession {
                                         case 'tagadmins': await commands.tagadmins(this.sock, from, msg, isAdmin, q); break;
                                         case 'delete': await commands.deleteMsg(this.sock, from, msg, isAdmin); break;
                                         case 'ginfo': await commands.groupinfo(this.sock, from, msg); break;
+                                        // Utility & fun commands
+                                        case 'calc': case 'calculator': await commands.calc(this.sock, from, msg, q); break;
+                                        case 'flip': case 'coinflip': await commands.flip(this.sock, from, msg); break;
+                                        case 'roll': case 'dice': await commands.roll(this.sock, from, msg, q); break;
+                                        case '8ball': await commands['8ball'](this.sock, from, msg, q); break;
+                                        case 'morse': await commands.morse(this.sock, from, msg, q); break;
+                                        case 'qr': case 'qrcode': await commands.qr(this.sock, from, msg, q); break;
+                                        case 'shorturl': case 'tinyurl': await commands.shorturl(this.sock, from, msg, q); break;
+                                        case 'wiki': case 'wikipedia': await commands.wiki(this.sock, from, msg, q); break;
+                                        case 'define': case 'dictionary': case 'meaning': await commands.define(this.sock, from, msg, q); break;
+                                        case 'github': case 'gh': await commands.github(this.sock, from, msg, q); break;
+                                        case 'uptime': case 'runtime': await commands.uptime(this.sock, from, msg); break;
+                                        case 'truth': await commands.truth(this.sock, from, msg); break;
+                                        case 'dare': await commands.dare(this.sock, from, msg); break;
+                                        case 'riddle': await commands.riddle(this.sock, from, msg); break;
+                                        case 'wyr': case 'wouldyourather': await commands.wyr(this.sock, from, msg); break;
                                         case 'pair': await pairCommand(this.sock, from, msg, isOwner, args, sessions, BotSession); break;
                                         case 'setprefix': await setprefixCommand(this.sock, from, msg, isAdmin, botData, saveBotData, this.userId, args); break;
                                         case 'islamic': case 'islamicstatus': case 'islamictest':
