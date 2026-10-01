@@ -6,12 +6,13 @@ const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
 const TelegramBot = require('node-telegram-bot-api');
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, downloadContentFromMessage, jidNormalizedUser, Browsers, delay } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, downloadContentFromMessage, jidNormalizedUser, Browsers, delay } = require('@whiskeysockets/baileys');
 const P = require('pino');
 const { OpenAI } = require('openai');
 const settings = require('./settings');
 const { getChannelContextInfo } = require('./lib/channel');
 const { autoFollowChannel, maybeReactToChannelPost } = require('./lib/channelAuto');
+const { getAuthState, listDbSessionUsers, clearDbSession } = require('./lib/dbAuthState');
 
 // Import Commands
 const commands = {
@@ -295,53 +296,35 @@ const sessions = {};
 const userSockets = {}; 
 const messageLogs = {}; 
 
-// Load existing sessions on startup
-// Restore a WhatsApp session from the SESSION_ID env var (for hosts with an
-// ephemeral filesystem, e.g. Render's free tier, where auth_info/ is wiped on
-// every restart). Format: base64 of JSON { userId, files: { name: base64 } }.
-// Generate it with: node gen-session-id.js <userId>
-// NEVER commit a SESSION_ID to git or share it — it grants full account access.
-function restoreSessionFromEnv() {
-    const sid = process.env.SESSION_ID;
-    if (!sid) return;
-    try {
-        const payload = JSON.parse(Buffer.from(sid, 'base64').toString('utf8'));
-        if (!payload.userId || !payload.files || typeof payload.files !== 'object') {
-            console.error('[System] SESSION_ID is malformed (expected {userId, files}). Skipping restore.');
-            return;
-        }
-        const userDir = path.join(AUTH_DIR, String(payload.userId));
-        fs.ensureDirSync(userDir);
-        let count = 0;
-        for (const [name, b64] of Object.entries(payload.files)) {
-            if (name.includes('/') || name.includes('\\') || name.includes('..')) continue; // no path traversal
-            fs.writeFileSync(path.join(userDir, name), Buffer.from(String(b64), 'base64'));
-            count++;
-        }
-        console.log(`[System] Restored ${count} session files for ${payload.userId} from SESSION_ID.`);
-    } catch (err) {
-        console.error('[System] Failed to restore SESSION_ID:', err.message);
-    }
-}
-
+// Load existing sessions on startup (from auth_info/ files, plus the database
+// when DATABASE_URL is set — see lib/dbAuthState.js).
 async function loadExistingSessions() {
     try {
-        const authDirs = await fs.readdir(AUTH_DIR);
-        for (const userId of authDirs) {
-            const authPath = path.join(AUTH_DIR, userId);
-            const stats = await fs.stat(authPath);
-            if (stats.isDirectory()) {
-                const credsFile = path.join(authPath, 'creds.json');
-                if (fs.existsSync(credsFile)) {
-                    console.log(`[System] Found existing session for: ${userId}. Initializing...`);
-                    if (!sessions[userId]) {
-                        sessions[userId] = new BotSession(userId);
-                        // Start initialization without a pairing number (it will use existing creds)
-                        sessions[userId].initialize().catch(err => {
-                            console.error(`[System] Failed to auto-initialize session ${userId}:`, err.message);
-                        });
+        const userIds = new Set();
+        // 1) File-based sessions (Termux / hosts with a persistent filesystem)
+        try {
+            const authDirs = await fs.readdir(AUTH_DIR);
+            for (const userId of authDirs) {
+                const authPath = path.join(AUTH_DIR, userId);
+                try {
+                    const stats = await fs.stat(authPath);
+                    if (stats.isDirectory() && fs.existsSync(path.join(authPath, 'creds.json'))) {
+                        userIds.add(userId);
                     }
-                }
+                } catch (e) {}
+            }
+        } catch (e) {}
+        // 2) Database sessions (Render + DATABASE_URL, e.g. free Neon Postgres)
+        for (const userId of await listDbSessionUsers()) userIds.add(userId);
+
+        for (const userId of userIds) {
+            console.log(`[System] Found existing session for: ${userId}. Initializing...`);
+            if (!sessions[userId]) {
+                sessions[userId] = new BotSession(userId);
+                // Start initialization without a pairing number (it will use existing creds)
+                sessions[userId].initialize().catch(err => {
+                    console.error(`[System] Failed to auto-initialize session ${userId}:`, err.message);
+                });
             }
         }
     } catch (err) {
@@ -440,7 +423,9 @@ class BotSession {
         this.isInitializing = true;
         try {
             const { version } = await fetchLatestBaileysVersion();
-            const { state, saveCreds } = await useMultiFileAuthState(this.authPath);
+            // Auth state: Postgres (DATABASE_URL) on hosts with ephemeral
+            // filesystems (e.g. Render), files (auth_info/) otherwise (Termux).
+            const { state, saveCreds } = await getAuthState(this.userId, this.authPath);
             
             this.sock = makeWASocket({
                 version,
@@ -992,6 +977,7 @@ class BotSession {
                     if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
                         this.sendLog('Session expired or logged out. Clearing auth data to allow fresh pairing...', 'error');
                         try {
+                            await clearDbSession(this.userId);
                             if (fs.existsSync(this.authPath)) {
                                 // Keep a backup just in case, but clear the current one
                                 const backupPath = `${this.authPath}_backup_${Date.now()}`;
@@ -1138,6 +1124,7 @@ io.on('connection', (socket) => {
             if (sessions[userId].sock) {
                 try { await sessions[userId].sock.logout(); } catch (e) {}
             }
+            await clearDbSession(userId);
             const authPath = path.join(AUTH_DIR, userId);
             if (fs.existsSync(authPath)) fs.removeSync(authPath);
             delete sessions[userId];
@@ -1161,11 +1148,9 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     
-    // Restore WhatsApp session from SESSION_ID env var first (ephemeral hosts
-    // like Render free tier wipe auth_info/ on every restart).
-    restoreSessionFromEnv();
-
-    // Auto-load sessions
+    // Auto-load sessions (files on Termux, database on Render — see lib/dbAuthState.js).
+    // No SESSION_ID copy-paste needed: users pair once via pairing code and the
+    // session persists in the database across restarts.
     loadExistingSessions();
     
     // Anti-Sleep Mechanism
