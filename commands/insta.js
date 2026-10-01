@@ -1,19 +1,5 @@
 const axios = require('axios');
-const { cobaltFetch } = require('../lib/cobalt');
-let igdl;
-try {
-    ({ igdl } = require('ruhend-scraper'));
-} catch (e) {
-    igdl = null; // ruhend-scraper missing/broken - source is skipped, not fatal
-}
-
-const AXIOS_DEFAULTS = {
-    timeout: 20000,
-    headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*'
-    }
-};
+const { trySources, instagramSources, sendVideoSmart, downloadToFile } = require('../lib/fallbackDownload');
 
 const MAX_ITEMS = 5;           // don't flood the chat on multi-image posts
 const MAX_MEDIA_BYTES = 60 * 1024 * 1024; // 60MB safety cap per item
@@ -29,32 +15,6 @@ function dedupeMedia(items) {
         out.push(item);
     }
     return out;
-}
-
-// Source 1: ruhend-scraper (already a project dependency, no external API key needed)
-async function fetchWithRuhend(url) {
-    if (!igdl) throw new Error('ruhend-scraper unavailable');
-    const result = await igdl(url);
-    if (!result || !Array.isArray(result.data) || result.data.length === 0) {
-        throw new Error('ruhend-scraper returned no media');
-    }
-    return result.data.map(m => ({
-        url: m.url,
-        type: m.type === 'video' || /\.(mp4|mov|webm)(\?|$)/i.test(m.url || '') ? 'video' : 'image'
-    }));
-}
-
-// Source 2: Vreden public API (fallback)
-async function fetchWithVreden(url) {
-    const apiUrl = `https://api.vreden.my.id/api/igdownload?url=${encodeURIComponent(url)}`;
-    const res = await axios.get(apiUrl, AXIOS_DEFAULTS);
-    if (!res?.data?.status || !Array.isArray(res.data.result) || res.data.result.length === 0) {
-        throw new Error('Vreden returned no media');
-    }
-    return res.data.result.map(m => ({
-        url: m.url,
-        type: m.type === 'video' ? 'video' : 'image'
-    }));
 }
 
 async function instaCommand(sock, from, msg, q) {
@@ -73,29 +33,12 @@ async function instaCommand(sock, from, msg, q) {
             await sock.sendMessage(from, { react: { text: emoji, key: msg.key } });
         }
 
-        const sources = [
-            { name: 'cobalt', run: () => cobaltFetch(query) },
-            { name: 'ruhend-scraper', run: () => fetchWithRuhend(query) },
-            { name: 'Vreden', run: () => fetchWithVreden(query) }
-        ];
+        // Fallback chain: cobalt -> ruhend-scraper (first working source wins)
+        const { name, media } = await trySources(query, instagramSources());
+        const items = dedupeMedia(media);
+        if (items.length === 0) throw new Error('no media from ' + name);
 
-        let media = null;
-        let lastError;
-        for (const source of sources) {
-            try {
-                media = dedupeMedia(await source.run());
-                if (media.length > 0) break;
-            } catch (err) {
-                lastError = err;
-                console.error(`Instagram source "${source.name}" failed:`, err.message);
-            }
-        }
-
-        if (!media || media.length === 0) {
-            throw lastError || new Error('No media found');
-        }
-
-        const toSend = media.slice(0, MAX_ITEMS);
+        const toSend = items.slice(0, MAX_ITEMS);
         let sentAny = false;
 
         for (const item of toSend) {
@@ -113,9 +56,18 @@ async function instaCommand(sock, from, msg, q) {
                 }
 
                 if (item.type === 'video') {
-                    await sock.sendMessage(from, { video: { url: item.url }, caption: '✅ Instagram Video' }, { quoted: msg });
+                    // Smart send: direct URL first, server-side download as fallback
+                    await sendVideoSmart(sock, from, msg, item.url, '✅ Instagram Video');
                 } else {
-                    await sock.sendMessage(from, { image: { url: item.url }, caption: '✅ Instagram Image' }, { quoted: msg });
+                    try {
+                        await sock.sendMessage(from, { image: { url: item.url }, caption: '✅ Instagram Image' }, { quoted: msg });
+                    } catch (imgErr) {
+                        // Buffer fallback for images too
+                        const tmp = require('path').join(process.cwd(), 'tmp', `ig_${Date.now()}.jpg`);
+                        await downloadToFile(item.url, tmp);
+                        await sock.sendMessage(from, { image: require('fs-extra').readFileSync(tmp), caption: '✅ Instagram Image' }, { quoted: msg });
+                        require('fs-extra').remove(tmp).catch(() => {});
+                    }
                 }
                 sentAny = true;
             } catch (sendErr) {

@@ -1,6 +1,5 @@
-const axios = require('axios');
 const settings = require('../settings');
-const { cobaltFetch } = require('../lib/cobalt');
+const { trySources, tiktokSources, sendVideoSmart } = require('../lib/fallbackDownload');
 
 const TIKTOK_URL_PATTERN = /https?:\/\/(?:www\.|vm\.|vt\.|m\.)?tiktok\.com\//i;
 
@@ -20,32 +19,16 @@ async function tiktokCommand(sock, from, msg, q) {
             await sock.sendMessage(from, { react: { text: emoji, key: msg.key } });
         }
 
-        let videoUrl = null;
+        // Fallback chain: cobalt -> tikwm (first working source wins)
+        const { name, media } = await trySources(query, tiktokSources());
+        const video = media.find(m => m.type === 'video') || media[0];
+        if (!video || !video.url) throw new Error('no video url from ' + name);
 
-        // Primary: Cobalt API (actively maintained, no key needed)
-        try {
-            const media = await cobaltFetch(query);
-            const video = media.find(m => m.type === 'video') || media[0];
-            videoUrl = video && video.url;
-        } catch (cobaltErr) {
-            console.error('TikTok cobalt source failed:', cobaltErr.message);
-        }
-
-        // Fallback: tikwm (legacy source, kept in case Cobalt is down)
-        if (!videoUrl) {
-            const res = await axios.get('https://tikwm.com/api/', {
-                params: { url: query },
-                timeout: 20000,
-                headers: { 'User-Agent': 'Mozilla/5.0' }
-            });
-
-            videoUrl = res?.data?.data?.play;
-            if (res?.data?.code !== 0 || !videoUrl) {
-                throw new Error(res?.data?.msg || 'TikTok API returned no video');
-            }
-        }
-
-        await sock.sendMessage(from, { video: { url: videoUrl }, caption: `✅ TIKTOK DOWNLOADED BY ${settings.botName.toUpperCase()}` }, { quoted: msg });
+        // Smart send: direct URL first, server-side download as fallback
+        await sendVideoSmart(
+            sock, from, msg, video.url,
+            `✅ TIKTOK DOWNLOADED BY ${settings.botName.toUpperCase()}`
+        );
     } catch (e) {
         console.error('TikTok command error:', e.message);
         await sock.sendMessage(from, { text: '❌ Could not download that TikTok video. It may be private, region-locked, or the link is invalid.' }, { quoted: msg });

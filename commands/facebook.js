@@ -70,24 +70,11 @@ async function facebookCommand(sock, chatId, message) {
             throw new Error('Siputzx API returned no downloadable video');
         }
 
-        // Fallback: NexOracle API
-        async function fetchFromNexoracle(u) {
-            const apiUrl = `https://api.nexoracle.com/downloader/facebook?apikey=free_key@maher_apis&url=${encodeURIComponent(u)}`;
-            const response = await axios.get(apiUrl, { timeout: 20000, validateStatus: s => s >= 200 && s < 500 });
-            const data = response.data;
-            const result = data?.result;
-            const fbvid = result?.hd || result?.sd || result?.url;
-            if (data && (data.status === 200 || data.status === true) && fbvid) {
-                return { fbvid, title: result?.title || 'Facebook Video' };
-            }
-            throw new Error('NexOracle API returned no downloadable video');
-        }
-
         // Try each source against the resolved URL, then the original URL, in order
+        // (NexOracle removed 2026-10-01: API dead — verified with live tests)
         const sources = [
             { name: 'Cobalt', run: fetchFromCobalt },
-            { name: 'Siputzx', run: fetchFromSiputzx },
-            { name: 'NexOracle', run: fetchFromNexoracle }
+            { name: 'Siputzx', run: fetchFromSiputzx }
         ];
 
         let result = null;
