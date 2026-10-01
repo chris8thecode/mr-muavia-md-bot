@@ -714,6 +714,7 @@ class BotSession {
                                                 (isOwner ? `┃ ⋄ ${toBold(".newgc name | numbers")}\n` : '') +
                                                 (isOwner ? `┃ ⋄ ${toBold(".out")}\n` : '') +
                                                 (isOwner ? `┃ ⋄ ${toBold(".end confirm")}\n` : '') +
+                                                (isOwner ? `┃ ⋄ ${toBold(".pair (number)")}\n` : '') +
                                                 `╰━━━━━━━━━━━━━━━━━━┈⊷`
                                             );
 
@@ -811,6 +812,7 @@ class BotSession {
                                                 `┃ ⋄ ${toBold(".wiki (topic)")} / ${toBold(".define (word)")}\n` +
                                                 `┃ ⋄ ${toBold(".github (username)")} / ${toBold(".uptime")}\n` +
                                                 `┃ ⋄ ${toBold(".truth")} / ${toBold(".dare")} / ${toBold(".riddle")} / ${toBold(".wyr")}\n` +
+                                                `┃ ⋄ ${toBold(".channelstatus")}\n` +
                                                 `╰━━━━━━━━━━━━━━━━━━┈⊷`
                                             );
 
