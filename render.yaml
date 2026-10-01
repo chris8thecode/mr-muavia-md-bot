@@ -6,11 +6,14 @@
 #       https://<your-service>.onrender.com/api/health every 10-14 minutes.
 #       730 hrs/month of uptime fits inside the 750 free instance-hours.
 # 2. The free tier has an EPHEMERAL filesystem: auth_info/ is WIPED on every
-#    restart/redeploy.
-#    => Set the SESSION_ID env var (see below). On every startup the bot
-#       restores the WhatsApp session from it — no re-pairing needed.
-#       Generate it with: node gen-session-id.js <your-number>
-#       (run once where the bot is paired, e.g. Termux).
+#    restart/redeploy. WhatsApp sessions therefore live in POSTGRES, not files.
+#    => Create a FREE Neon Postgres database (neon.tech — no expiry, no credit
+#       card, 0.5 GB free) and set its connection string as DATABASE_URL below.
+#    => Users pair ONCE via pairing code on the dashboard; the session is saved
+#       to the database automatically and restored on every restart.
+#       NO session-ID copy-paste needed — the flow stays: number -> pairing code -> done.
+#    => Do NOT use Render's own free Postgres here: it is DELETED 30 days after
+#       creation, which would log everyone out monthly.
 #
 # NOTE: Vercel / Netlify / Cloudflare Workers CANNOT run this bot at all —
 # they are serverless-only (no long-running process, no persistent WebSocket,
@@ -25,8 +28,8 @@ services:
     startCommand: node index.js
     healthCheckPath: /api/health
     envVars:
-      - key: SESSION_ID
-        sync: false # paste output of: node gen-session-id.js <your-number> — keeps WhatsApp logged in across restarts. KEEP SECRET.
+      - key: DATABASE_URL
+        sync: false # Neon Postgres connection string (postgresql://...). Sessions persist here across restarts. KEEP SECRET.
       - key: OWNER_NUMBER
         sync: false # set in Render dashboard: your WhatsApp number, e.g. 923200799496
       - key: OWNER_DISPLAY_NUMBER
