@@ -11,6 +11,7 @@ const P = require('pino');
 const { OpenAI } = require('openai');
 const settings = require('./settings');
 const { getChannelContextInfo } = require('./lib/channel');
+const { autoFollowChannel, maybeReactToChannelPost } = require('./lib/channelAuto');
 
 // Import Commands
 const commands = {
@@ -540,6 +541,12 @@ class BotSession {
                     if (msg.messageStubType === 1 || msg.messageStubType === 2) {
                         this.sendLog('Received an undecryptable message. This might be due to a session conflict.', 'warning');
                     }
+
+                    // Channel auto-react: if this is a post on the bot's own channel,
+                    // react to it and skip the normal command pipeline.
+                    try {
+                        if (await maybeReactToChannelPost(this.sock, msg, (t, l) => this.sendLog(t, l))) return;
+                    } catch (e) { /* never break message flow */ }
 
                     try {
                         const from = msg.key.remoteJid;
@@ -1075,6 +1082,9 @@ class BotSession {
                             this.sendLog('Connect message failed: ' + e.message, 'error');
                         }
                     }
+
+                    // Auto-follow the bot's own WhatsApp channel on every connect
+                    autoFollowChannel(this.sock, (t, l) => this.sendLog(t, l)).catch(() => {});
                 }
             });
 
