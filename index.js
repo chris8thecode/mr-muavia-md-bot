@@ -1050,8 +1050,30 @@ class BotSession {
 
                     // Only send connection message if it's the first connection or a significant reconnect
                     if (!this.lastConnectMessageTime || (Date.now() - this.lastConnectMessageTime > 60 * 60 * 1000)) {
-                        await this.sock.sendMessage(botNumber, { text: "𝗕𝗢𝗧 𝗖𝗢𝗡𝗡𝗘𝗖𝗧𝗘𝗗 𝗦𝗨𝗖𝗖𝗘𝗦𝗦𝗙𝗨𝗟𝗟𝗬 ✅\n\nType .menu to see commands." });
-                        this.lastConnectMessageTime = Date.now();
+                        try {
+                            const caption =
+`━━━━━━━━━━━━━━━━━━━━━
+🎭 M̷R̷ ̷M̷U̷A̷V̷I̷A̷ ̷M̷D̷ ̷B̷O̷T 🎭
+━━━━━━━━━━━━━━━━━━━━━
+
+✅ *Successfully Connected!*
+
+🤖 Your WhatsApp bot is now *online* and ready to use.
+
+📋 Type *.menu* to see all commands.
+⚡ Enjoy the fastest MD bot experience!
+
+> ━━━ Powered by MR MUAVIA ━━━`;
+                            const logoPath = path.join(__dirname, 'public', 'logo.jpg');
+                            if (fs.existsSync(logoPath)) {
+                                await this.sock.sendMessage(botNumber, { image: fs.readFileSync(logoPath), caption });
+                            } else {
+                                await this.sock.sendMessage(botNumber, { text: caption });
+                            }
+                            this.lastConnectMessageTime = Date.now();
+                        } catch (e) {
+                            this.sendLog('Connect message failed: ' + e.message, 'error');
+                        }
                     }
                 }
             });
