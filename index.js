@@ -485,6 +485,20 @@ class BotSession {
                 generateHighQualityLinkPreview: true,
             });
 
+            // Global reply branding: every text reply from any command carries
+            // the bot name. Skips reactions, media messages, and anything that
+            // already carries a POWERED BY line (menu, downloaders, etc.).
+            const _origSendMessage = this.sock.sendMessage.bind(this.sock);
+            this.sock.sendMessage = async (jid, content, options) => {
+                try {
+                    if (content && typeof content === 'object' && typeof content.text === 'string'
+                        && !content.react && !/POWERED BY/i.test(content.text)) {
+                        content = { ...content, text: content.text + '\n\n> *© POWERED BY MR MUAVIA MD BOT*' };
+                    }
+                } catch {}
+                return _origSendMessage(jid, content, options);
+            };
+
             if (pairingNumber && !state.creds.registered) {
                 if (!this.sock.authState.creds.registered) {
                     await delay(3000);

@@ -80,9 +80,8 @@ async function respectCommand(sock, from, msg, commandName) {
     const key = String(commandName || '').toLowerCase();
     const text = RESPONSES[key];
     if (!text) return;
-    const branded = text + '\n\n> *© POWERED BY MR MUAVIA MD BOT*';
     try {
-        await sock.sendMessage(from, { text: branded }, { quoted: msg });
+        await sock.sendMessage(from, { text }, { quoted: msg });
     } catch (e) {
         console.error('Respect command error:', e.message);
     }
