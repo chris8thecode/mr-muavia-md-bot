@@ -26,6 +26,7 @@ const commands = {
     aichat: require('./commands/aichat'),
     movie: require('./commands/movie'),
     respect: require('./commands/respect'),
+    aiimage: require('./commands/aiimage'),
     antilink: require('./commands/antilink'),
     anticall: require('./commands/anticall'),
     status: require('./commands/status'),
@@ -742,6 +743,7 @@ class BotSession {
                                                 '.chatgpt',
                                                 '.gemini',
                                                 '.ask',
+                                                '.aiimage (prompt)',
                                                 ...(isAdmin ? ['.ai on/off', '.aion', '.aioff', '.aiclear'] : []),
                                             ]);
 
@@ -916,6 +918,7 @@ class BotSession {
                                         case 'joke': await commands.joke(this.sock, from, msg); break;
                                         case 'meme': await commands.meme(this.sock, from, msg); break;
                                         case 'movie': case 'film': await commands.movie(this.sock, from, msg, q); break;
+                                        case 'aiimage': case 'imagine': case 'aimage': await commands.aiimage(this.sock, from, msg, q); break;
                                         case 'respect': case 'salute': case 'salam': case 'adab': case 'jazakallah': case 'shukria': case 'thankyou': case 'sorry': case 'maafi': case 'tazeem': case 'izzat': case 'qadr': case 'ahsan': case 'mehrbani': case 'nawaz': case 'salaam': case 'tasleem': case 'shandar': case 'zabardast': case 'kamaal': case 'lajawab': case 'mashallah': case 'subhanallah': case 'barkatein': case 'duain': case 'khidmat': case 'ehtram': case 'appreciation': case 'proud': case 'grateful': case 'karam': case 'inayat': case 'lutf': case 'mihr': case 'shafqat': case 'rahmat': case 'naimat': case 'congratulations': case 'mubarak': case 'badhai': case 'tahseen': case 'afreen': case 'wah': case 'khushi': case 'dilse': case 'legend': case 'hero': case 'superstar': case 'rockstar': case 'champion': case 'boss': case 'king': case 'queen': case 'gem': case 'diamond': case 'precious': case 'valuable': case 'deserving': case 'inspiration': case 'rolemodel': case 'mentor': case 'genius': case 'talent': case 'skillful': case 'awesome': case 'wonderful': case 'fantastic': case 'excellence': case 'perfect': case 'blessed': await commands.respect(this.sock, from, msg, commandName); break;
                                         case 'vv': await commands.vv(this.sock, from, msg); break;
                                         case 'dp': await commands.dp(this.sock, from, msg); break;
