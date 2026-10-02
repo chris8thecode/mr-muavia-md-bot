@@ -1,5 +1,6 @@
 const axios = require('axios');
-const { trySources, instagramSources, deliverVideoRobust, downloadToFile } = require('../lib/fallbackDownload');
+const apiManager = require('../lib/apiManager');
+const { deliverVideoRobust, downloadToFile } = require('../lib/fallbackDownload');
 
 const MAX_ITEMS = 5;           // don't flood the chat on multi-image posts
 const MAX_MEDIA_BYTES = 60 * 1024 * 1024; // 60MB safety cap per item
@@ -33,10 +34,11 @@ async function instaCommand(sock, from, msg, q) {
             await sock.sendMessage(from, { react: { text: emoji, key: msg.key } });
         }
 
-        // Fallback chain: cobalt -> ruhend-scraper (first working source wins)
-        const { name, media } = await trySources(query, instagramSources());
+        // Centralized fallback: emmy-aio -> cobalt -> ruhend-scraper
+        // (health-tracked with circuit breaker, first working provider wins)
+        const { provider, result: media } = await apiManager.instagram(query);
         const items = dedupeMedia(media);
-        if (items.length === 0) throw new Error('no media from ' + name);
+        if (items.length === 0) throw new Error('no media from ' + provider);
 
         const toSend = items.slice(0, MAX_ITEMS);
         let sentAny = false;

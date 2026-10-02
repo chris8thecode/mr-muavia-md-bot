@@ -3,6 +3,7 @@ const yts = require('yt-search');
 const fs = require('fs').promises;
 const path = require('path');
 const { toAudio } = require('../lib/converter');
+const apiManager = require('../lib/apiManager');
 
 const AXIOS_DEFAULTS = {
     timeout: 60000,
@@ -27,17 +28,9 @@ async function tryRequest(getter, attempts = 3) {
     throw lastError;
 }
 
-// EliteProTech API - Primary
+// EliteProTech API - REMOVED 2026-10-02: dead (returns 404 HTML page)
 async function getEliteProTechDownloadByUrl(youtubeUrl) {
-    const apiUrl = `https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(youtubeUrl)}&format=mp3`;
-    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
-    if (res?.data?.success && res?.data?.downloadURL) {
-        return {
-            download: res.data.downloadURL,
-            title: res.data.title
-        };
-    }
-    throw new Error('EliteProTech returned no download');
+    throw new Error('EliteProTech discontinued');
 }
 
 async function getYupraDownloadByUrl(youtubeUrl) {
@@ -107,19 +100,15 @@ async function songCommand(sock, chatId, message) {
         let finalTitle = video.title;
         
         const apiMethods = [
-            { name: 'EliteProTech', method: () => getEliteProTechDownloadByUrl(video.url) },
+            // Primary: centralized apiManager (emmy-savetube -> emmy-clipto, health-tracked)
+            { name: 'ApiManager', method: async () => {
+                const { result: media } = await apiManager.youtubeAudio(video.url);
+                const audio = media.find(m => m.type === 'audio') || media[0];
+                if (!audio || !audio.url) throw new Error('apiManager: no audio');
+                return { download: audio.url, title: audio.title || video.title };
+            }},
             { name: 'Yupra', method: () => getYupraDownloadByUrl(video.url) },
             { name: 'Okatsu', method: () => getOkatsuDownloadByUrl(video.url) },
-            { name: 'Alya', method: async () => {
-                const res = await axios.get(`https://api.alyachan.pro/api/ytmp3?url=${encodeURIComponent(video.url)}&apikey=G7I6X7`, AXIOS_DEFAULTS);
-                if (res.data.status && res.data.data.url) return { download: res.data.data.url, title: res.data.data.title };
-                throw new Error('Alya failed');
-            }},
-            { name: 'Vreden', method: async () => {
-                const res = await axios.get(`https://api.vreden.my.id/api/ytmp3?url=${encodeURIComponent(video.url)}`, AXIOS_DEFAULTS);
-                if (res.data.status && res.data.result.download.url) return { download: res.data.result.download.url, title: res.data.result.metadata.title };
-                throw new Error('Vreden failed');
-            }}
         ];
         
         for (const apiMethod of apiMethods) {

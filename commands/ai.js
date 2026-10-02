@@ -1,45 +1,43 @@
-// AI on/off is persisted per-session in botData.aiSettings[userId] so it survives restarts,
-// in addition to the in-memory session.aiEnabled flag used for fast per-message checks.
-async function aiCommand(sock, from, msg, isAdmin, session, args, botData, saveBotData) {
-    if (!isAdmin) return await sock.sendMessage(from, { text: "❌ Only owner can use this command." }, { quoted: msg });
+// AI command with multi-provider fallback (no API key required).
+//
+// Providers (via lib/apiManager, health-tracked):
+//   1. emmy-chat (free, no key)  2. pollinations (free, no key)  3. openai (if OPENAI_API_KEY set)
+//
+// .ai on/off  -> toggle auto-reply mode (owner/admin only), persisted per-session
+// .ai [query] -> ask AI (everyone)
+const apiManager = require('../lib/apiManager');
 
+async function aiCommand(sock, from, msg, isAdmin, session, args, botData, saveBotData) {
     const action = args[0]?.toLowerCase();
-    if (action === 'on') {
-        session.aiEnabled = true;
+
+    if (action === 'on' || action === 'off') {
+        if (!isAdmin) return await sock.sendMessage(from, { text: "❌ Only owner can use this command." }, { quoted: msg });
+        const enabled = action === 'on';
+        session.aiEnabled = enabled;
         if (botData) {
             if (!botData.aiSettings) botData.aiSettings = {};
-            botData.aiSettings[session.userId] = true;
+            botData.aiSettings[session.userId] = enabled;
             if (saveBotData) saveBotData();
         }
-        if (!process.env.OPENAI_API_KEY) {
-            await sock.sendMessage(from, { text: "⚠️ AI Auto-Reply Enabled, but OPENAI_API_KEY is not configured yet - replies will show a configuration error until it's set." }, { quoted: msg });
-        } else {
-            await sock.sendMessage(from, { text: "✅ AI Auto-Reply Enabled!" }, { quoted: msg });
-        }
-    } else if (action === 'off') {
-        session.aiEnabled = false;
-        if (botData) {
-            if (!botData.aiSettings) botData.aiSettings = {};
-            botData.aiSettings[session.userId] = false;
-            if (saveBotData) saveBotData();
-        }
-        await sock.sendMessage(from, { text: "❌ AI Auto-Reply Disabled!" }, { quoted: msg });
-    } else if (args.length > 0) {
-        // Direct query to AI
+        await sock.sendMessage(from, { text: enabled ? "✅ AI Auto-Reply Enabled!" : "❌ AI Auto-Reply Disabled!" }, { quoted: msg });
+        return;
+    }
+
+    if (args.length > 0) {
+        // Direct query to AI — works for everyone, no API key needed
         const query = args.join(' ');
-        if (!process.env.OPENAI_API_KEY) {
-            return await sock.sendMessage(from, { text: "❌ AI is not configured. Ask the bot owner to set OPENAI_API_KEY in the environment." }, { quoted: msg });
-        }
         try {
             await sock.sendMessage(from, { react: { text: '🤖', key: msg.key } });
-            const response = await session.getAIResponse(from, query);
-            await sock.sendMessage(from, { text: response }, { quoted: msg });
+            const { provider, result } = await apiManager.ai(query, session);
+            await sock.sendMessage(from, { text: result.text }, { quoted: msg });
         } catch (e) {
-            await sock.sendMessage(from, { text: "❌ AI Error: " + e.message }, { quoted: msg });
+            console.error('AI command error:', e.message);
+            await sock.sendMessage(from, { text: "❌ AI is temporarily unavailable. Please try again in a moment." }, { quoted: msg });
         }
-    } else {
-        await sock.sendMessage(from, { text: "❌ Usage:\n.ai [on/off] - Toggle Auto-Reply\n.ai [query] - Ask AI something" }, { quoted: msg });
+        return;
     }
+
+    await sock.sendMessage(from, { text: "❌ Usage:\n.ai [on/off] - Toggle Auto-Reply (owner)\n.ai [question] - Ask AI something" }, { quoted: msg });
 }
 
 module.exports = aiCommand;

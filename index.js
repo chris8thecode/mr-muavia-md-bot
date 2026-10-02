@@ -23,6 +23,8 @@ const commands = {
     public: require('./commands/public'),
     owner: require('./commands/owner'),
     ai: require('./commands/ai'),
+    aichat: require('./commands/aichat'),
+    movie: require('./commands/movie'),
     antilink: require('./commands/antilink'),
     anticall: require('./commands/anticall'),
     status: require('./commands/status'),
@@ -251,7 +253,7 @@ const DATA_FILE = './data/bot_data.json';
 fs.ensureDirSync(AUTH_DIR);
 fs.ensureDirSync('./data');
 
-let botData = { antilinkGroups: {}, totalBots: 0, registeredBots: [], statusSettings: {}, antiDelete: {}, userNames: {}, antiCall: {}, inactiveGroups: {}, prefixSettings: {}, islamicSettings: {}, antiStatusGroups: {}, aiSettings: {}, autoReadSettings: {}, autoReplySettings: {} };
+let botData = { antilinkGroups: {}, totalBots: 0, registeredBots: [], statusSettings: {}, antiDelete: {}, userNames: {}, antiCall: {}, inactiveGroups: {}, prefixSettings: {}, islamicSettings: {}, antiStatusGroups: {}, aiSettings: {}, autoReadSettings: {}, autoReplySettings: {}, aiChat: {} };
 if (fs.existsSync(DATA_FILE)) {
     try { botData = fs.readJsonSync(DATA_FILE); } catch (e) {}
 }
@@ -602,6 +604,16 @@ class BotSession {
                             }
                         }
 
+                        // Per-chat Auto AI mode (.aion) — works in private AND group chats
+                        // where explicitly enabled. Skipped for commands and own messages.
+                        if (!isMe && !isStatus && text && !text.startsWith('.') && !text.startsWith(this.getPrefix())) {
+                            try {
+                                await commands.aichat.handleAutoAI(this.sock, msg, from, text, botData, saveBotData, this.userId, this);
+                            } catch (e) {
+                                console.error("Per-chat AutoAI Error:", e);
+                            }
+                        }
+
                         // Lightweight greeting Auto-Reply (Salam/Hi/Thanks/etc.) - only for plain
                         // messages that are not commands, so it never interferes with existing
                         // command processing. Skipped when AI auto-reply already handled this
@@ -759,6 +771,9 @@ class BotSession {
                                             menuSections.push(
                                                 `╭━━━〔 ${toBold("𝗔𝗜 & 𝗧𝗢𝗢𝗟𝗦")} 〕━━━┈⊷\n` +
                                                 `┃ ⋄ ${toBold(".ai [on/off/query]")}\n` +
+                                                `┃ ⋄ ${toBold(".chatgpt/.gemini/.ask")}\n` +
+                                                `┃ ⋄ ${toBold(".aion / .aioff / .aiclear")}\n` +
+                                                `┃ ⋄ ${toBold(".movie (name)")}\n` +
                                                 `┃ ⋄ ${toBold(".translate (text)")}\n` +
                                                 `┃ ⋄ ${toBold(".dp")}\n` +
                                                 `┃ ⋄ ${toBold(".joke")}\n` +
@@ -854,7 +869,10 @@ class BotSession {
                                             break;
                                         case 'ping': await commands.ping(this.sock, from, msg); break;
                                         case 'owner': await commands.owner(this.sock, from, msg); break;
-                                        case 'ai': await commands.ai(this.sock, from, msg, isAdmin, this, args, botData, saveBotData); break;
+                                        case 'ai': case 'chatgpt': case 'gemini': case 'ask': await commands.ai(this.sock, from, msg, isAdmin, this, args, botData, saveBotData); break;
+                                        case 'aion': await commands.aichat.aionCommand(this.sock, from, msg, isAdmin, botData, saveBotData, this.userId); break;
+                                        case 'aioff': await commands.aichat.aioffCommand(this.sock, from, msg, isAdmin, botData, saveBotData, this.userId); break;
+                                        case 'aiclear': await commands.aichat.aiclearCommand(this.sock, from, msg, botData, saveBotData, this.userId); break;
                                         case 'antilink': await commands.antilink(this.sock, from, msg, isAdmin, botData, saveBotData, args, this.userId); break;
                                         case 'anticall': await commands.anticall(this.sock, from, msg, isAdmin, botData, saveBotData, this.userId, args); break;
                                         case 'antidelete': await commands.antidelete(this.sock, from, msg, isAdmin, botData, saveBotData, this.userId, args); break;
@@ -884,6 +902,7 @@ class BotSession {
                                         case 'video': await commands.video(this.sock, from, msg); break;
                                         case 'joke': await commands.joke(this.sock, from, msg); break;
                                         case 'meme': await commands.meme(this.sock, from, msg); break;
+                                        case 'movie': case 'film': await commands.movie(this.sock, from, msg, q); break;
                                         case 'vv': await commands.vv(this.sock, from, msg); break;
                                         case 'dp': await commands.dp(this.sock, from, msg); break;
                                         case 'groupinfo': await commands.groupinfo(this.sock, from, msg); break;

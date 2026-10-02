@@ -1,6 +1,7 @@
 const axios = require('axios');
 const yts = require('yt-search');
 const settings = require('../settings');
+const apiManager = require('../lib/apiManager');
 
 const AXIOS_DEFAULTS = {
     timeout: 60000,
@@ -25,13 +26,9 @@ async function tryRequest(getter, attempts = 3) {
     throw lastError;
 }
 
+// EliteProTech API - REMOVED 2026-10-02: dead (returns 404 HTML page)
 async function getEliteProTechVideoByUrl(youtubeUrl) {
-    const apiUrl = `https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(youtubeUrl)}&format=mp4`;
-    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
-    if (res?.data?.success && res?.data?.downloadURL) {
-        return { download: res.data.downloadURL, title: res.data.title };
-    }
-    throw new Error('EliteProTech failed');
+    throw new Error('EliteProTech discontinued');
 }
 
 async function getYupraVideoByUrl(youtubeUrl) {
@@ -94,7 +91,13 @@ async function videoCommand(sock, chatId, message) {
         let videoData;
         let downloadSuccess = false;
         const apiMethods = [
-            { name: 'EliteProTech', method: () => getEliteProTechVideoByUrl(videoUrl) },
+            // Primary: centralized apiManager (emmy-clipto -> emmy-savetube, health-tracked)
+            { name: 'ApiManager', method: async () => {
+                const { result: media } = await apiManager.youtube(videoUrl);
+                const vid = media.find(m => m.type === 'video') || media[0];
+                if (!vid || !vid.url) throw new Error('apiManager: no video');
+                return { download: vid.url, title: vid.title || videoTitle };
+            }},
             { name: 'Yupra', method: () => getYupraVideoByUrl(videoUrl) },
             { name: 'Okatsu', method: () => getOkatsuVideoByUrl(videoUrl) }
         ];

@@ -2,7 +2,8 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const settings = require('../settings');
-const { cobaltFetch } = require('../lib/cobalt');
+const apiManager = require('../lib/apiManager');
+const { sendVideoSmart } = require('../lib/fallbackDownload');
 
 async function facebookCommand(sock, chatId, message) {
     try {
@@ -39,61 +40,27 @@ async function facebookCommand(sock, chatId, message) {
             // ignore resolution errors; use original url
         }
 
-        // Primary: Cobalt API (actively maintained, no key needed)
-        async function fetchFromCobalt(u) {
-            const media = await cobaltFetch(u);
-            const video = media.find(m => m.type === 'video') || media[0];
-            if (video && video.url) return { fbvid: video.url, title: 'Facebook Video' };
-            throw new Error('Cobalt returned no downloadable video');
-        }
-
-        // Primary: Siputzx API
-        async function fetchFromSiputzx(u) {
-            const apiUrl = `https://api.siputzx.my.id/api/d/facebook?url=${encodeURIComponent(u)}`;
-            const response = await axios.get(apiUrl, {
-                timeout: 20000,
-                headers: {
-                    'accept': '*/*',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                },
-                maxRedirects: 5,
-                validateStatus: s => s >= 200 && s < 500
-            });
-
-            const data = response.data;
-            if (data && data.status && data.data && Array.isArray(data.data.data)) {
-                const hdVideo = data.data.data.find(item => item.resolution === 'HD' && item.format === 'mp4');
-                const sdVideo = data.data.data.find(item => item.resolution === 'SD' && item.format === 'mp4');
-                const fbvid = hdVideo?.url || sdVideo?.url;
-                if (fbvid) return { fbvid, title: data.data.title || 'Facebook Video' };
-            }
-            throw new Error('Siputzx API returned no downloadable video');
-        }
-
-        // Try each source against the resolved URL, then the original URL, in order
-        // (NexOracle removed 2026-10-01: API dead — verified with live tests)
-        const sources = [
-            { name: 'Cobalt', run: fetchFromCobalt },
-            { name: 'Siputzx', run: fetchFromSiputzx }
-        ];
-
-        let result = null;
-        let lastError;
-        for (const source of sources) {
-            for (const candidateUrl of [resolvedUrl, url]) {
-                try {
-                    result = await source.run(candidateUrl);
+        // Centralized fallback: emmy-fbdown -> emmy-aio -> cobalt
+        // (health-tracked with circuit breaker, first working provider wins).
+        // Try the resolved URL first, then the original URL.
+        let fbvid = null;
+        let title = 'Facebook Video';
+        let lastError = null;
+        for (const candidateUrl of [resolvedUrl, url]) {
+            try {
+                const { result: media } = await apiManager.facebook(candidateUrl);
+                const video = media.find(m => m.type === 'video') || media[0];
+                if (video && video.url) {
+                    fbvid = video.url;
+                    if (video.title) title = video.title;
                     break;
-                } catch (err) {
-                    lastError = err;
-                    console.error(`Facebook source "${source.name}" failed for one URL variant: ${err.message}`);
                 }
+                throw new Error('no video url returned');
+            } catch (err) {
+                lastError = err;
+                console.error(`Facebook apiManager failed for one URL variant: ${err.message}`);
             }
-            if (result) break;
         }
-
-        const fbvid = result?.fbvid;
-        const title = result?.title;
 
         if (!fbvid) {
             return await sock.sendMessage(chatId, { 

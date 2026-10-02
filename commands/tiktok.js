@@ -1,5 +1,6 @@
 const settings = require('../settings');
-const { trySources, tiktokSources, sendVideoSmart } = require('../lib/fallbackDownload');
+const apiManager = require('../lib/apiManager');
+const { sendVideoSmart } = require('../lib/fallbackDownload');
 
 const TIKTOK_URL_PATTERN = /https?:\/\/(?:www\.|vm\.|vt\.|m\.)?tiktok\.com\//i;
 
@@ -19,10 +20,11 @@ async function tiktokCommand(sock, from, msg, q) {
             await sock.sendMessage(from, { react: { text: emoji, key: msg.key } });
         }
 
-        // Fallback chain: cobalt -> tikwm (first working source wins)
-        const { name, media } = await trySources(query, tiktokSources());
+        // Centralized fallback: emmy-aio -> cobalt -> tikwm -> emmy-savetik
+        // (health-tracked with circuit breaker, first working provider wins)
+        const { provider, result: media } = await apiManager.tiktok(query);
         const video = media.find(m => m.type === 'video') || media[0];
-        if (!video || !video.url) throw new Error('no video url from ' + name);
+        if (!video || !video.url) throw new Error('no video url from ' + provider);
 
         // Smart send: direct URL first, server-side download as fallback
         await sendVideoSmart(
