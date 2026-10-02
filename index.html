@@ -320,6 +320,18 @@
   var currentNumber = null;
   var pairTimer = null;
 
+  /* ---------- session ownership token ----------
+     The server issues a secret owner token when a number is paired. It is
+     stored here and sent with every management action, so one visitor can
+     never see or disconnect another user's WhatsApp session. */
+  var tokenKey = function(id){ return 'muavia_token_'+id; };
+  var getToken = function(id){ try{ return localStorage.getItem(tokenKey(id)); }catch(e){ return null; } };
+  var setToken = function(id,t){ try{ localStorage.setItem(tokenKey(id),t); }catch(e){} };
+  var clearToken = function(id){ try{ localStorage.removeItem(tokenKey(id)); }catch(e){} };
+  var numKey = 'muavia_last_number';
+  var getLastNumber = function(){ try{ return localStorage.getItem(numKey)||''; }catch(e){ return ''; } };
+  var setLastNumber = function(n){ try{ localStorage.setItem(numKey,n); }catch(e){} };
+
   var $ = function(id){ return document.getElementById(id); };
   var serverPill=$('serverPill'), serverPillTxt=$('serverPillTxt'),
       dateTxt=$('dateTxt'), timeTxt=$('timeTxt'),
@@ -406,12 +418,14 @@
     numErr.style.display='none';
     currentNumber=digits;
     currentUserId='wa_'+digits; /* one isolated session per number */
+    setLastNumber(digits);
     pairBtn.disabled=true;pairBtn.textContent='⏳ Generating…';
     setStatus('connecting');
     statusCard.scrollIntoView({behavior:'smooth',block:'center'});
 
-    socket.emit('set-user',currentUserId);
-    socket.emit('pair-request',{userId:currentUserId,number:digits});
+    var tok=getToken(currentUserId);
+    socket.emit('set-user',{userId:currentUserId,token:tok});
+    socket.emit('pair-request',{userId:currentUserId,number:digits,token:tok});
 
     if(pairTimer)clearTimeout(pairTimer);
     pairTimer=setTimeout(function(){
@@ -441,6 +455,17 @@
     logLine('Pairing code received. Enter it in WhatsApp → Linked Devices.');
   });
 
+  socket.on('pairing-token',function(d){
+    if(d&&d.userId&&d.token){ setToken(d.userId,d.token); }
+  });
+
+  socket.on('auth-error',function(e){
+    if(pairTimer)clearTimeout(pairTimer);
+    setStatus('failed');
+    pairBtn.disabled=false;pairBtn.textContent='🔑 Get Pairing Code';
+    logLine('🔒 '+(e&&e.message?e.message:'Not authorized.'));
+  });
+
   socket.on('connection-status',function(s){
     if(!s||s.user!==currentUserId)return;
     if(s.connected){
@@ -468,13 +493,20 @@
   });
 
   $('reconnectBtn').onclick=function(){
-    if(currentUserId){socket.emit('set-user',currentUserId);logLine('Refreshing status…');}
+    if(currentUserId){socket.emit('set-user',{userId:currentUserId,token:getToken(currentUserId)});logLine('Refreshing status…');}
   };
   $('logoutBtn').onclick=function(){
     if(currentUserId&&confirm('Disconnect this WhatsApp session?')){
-      socket.emit('logout',currentUserId);
+      socket.emit('logout',{userId:currentUserId,token:getToken(currentUserId)});
+      clearToken(currentUserId);
     }
   };
+
+  /* prefill the last used number for returning users */
+  (function(){
+    var last=getLastNumber();
+    if(last&&waNumber&&!waNumber.value){ waNumber.value=last; }
+  })();
 })();
 </script>
 </body>

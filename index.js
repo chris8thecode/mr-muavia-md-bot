@@ -112,6 +112,7 @@ const { islamicCommand, getSettings: getIslamicSettings } = require('./commands/
 const { IslamicScheduler } = require('./lib/islamicScheduler');
 const pairCommand = require('./commands/pair');
 const { handleAutoReply } = require('./commands/autoreply');
+const { getToken, setToken, deleteToken, verifyToken, newToken } = require('./lib/sessionTokens');
 
 
 const app = express();
@@ -177,7 +178,10 @@ if (process.env.OPENAI_API_KEY) {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname)));
+// SECURITY: serve ONLY the public/ asset directory (logo, etc.).
+// Previously the whole project root was served, which exposed index.js,
+// settings.js, lib/ and data/bot_data.json (session IDs) to the internet.
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 const BOT_VERSION = require('./package.json').version || '1.0.0';
 const SERVER_START_TIME = Date.now();
@@ -1090,21 +1094,65 @@ io.on('connection', (socket) => {
         return s.length >= 3 ? s : null;
     };
 
-    socket.on('set-user', (userId) => {
-        userId = sanitizeUserId(userId);
-        if (!userId) return;
+    // Payloads may arrive as the legacy plain string or as { userId, number, token }.
+    const normalizePayload = (p) => {
+        if (typeof p === 'string') return { userId: p };
+        if (p && typeof p === 'object') return { userId: p.userId, number: p.number, token: p.token };
+        return {};
+    };
+
+    // Ownership check: every management action must present the owner token
+    // that was issued when this userId was paired. Returns the sanitized
+    // userId on success, null otherwise.
+    const authorize = async (rawId, token) => {
+        const userId = sanitizeUserId(rawId);
+        if (!userId) return null;
+        const ok = await verifyToken(userId, token);
+        return ok ? userId : null;
+    };
+    const authDenied = (msg) => {
+        socket.emit('auth-error', { message: msg + ' Please pair again from this browser to manage your session.' });
+    };
+
+    socket.on('set-user', async (payload) => {
+        const { userId: rawId, token } = normalizePayload(payload);
+        const userId = await authorize(rawId, token);
+        if (!userId) { authDenied('This session is not linked to this browser.'); return; }
         userSockets[userId] = socket.id;
         if (!sessions[userId]) sessions[userId] = new BotSession(userId);
         sessions[userId].sendConnectionStatus();
     });
 
-    socket.on('pair-request', async ({ userId, number }) => {
-        userId = sanitizeUserId(userId);
+    socket.on('pair-request', async (payload) => {
+        const { userId: rawId, number, token } = normalizePayload(payload);
+        const userId = sanitizeUserId(rawId);
         if (!userId) return;
-        if (sessions[userId]) {
+        const digits = String(number || '').replace(/\D/g, '');
+        if (!digits) return;
+
+        // An already-CONNECTED session can only be touched by its owner.
+        // Without a valid token we refuse — otherwise anyone who knows (or
+        // guesses) a number could hijack or disturb someone else's session.
+        if (sessions[userId] && sessions[userId].isConnected) {
+            const authed = await authorize(userId, token);
+            if (!authed) { authDenied('This WhatsApp number is already connected from another browser.'); return; }
+            sessions[userId].sendConnectionStatus();
+            return;
+        }
+
+        // New (or disconnected) pairing: the owner token is issued now and the
+        // browser stores it. Proof of number ownership happens when the pairing
+        // code is entered inside the real WhatsApp app — only the number's
+        // owner can do that, so issuing the token here is safe.
+        const ownerToken = newToken();
+        await setToken(userId, ownerToken);
+        socket.emit('pairing-token', { userId, token: ownerToken });
+        userSockets[userId] = socket.id;
+
+        if (!sessions[userId]) {
             if (!botData.statusSettings[userId]) {
                 // By default all commands are off as per user request
-                botData.statusSettings[userId] = { 
+                botData.statusSettings[userId] = {
                     autoStatus: false,
                     autoSeen: false,
                     autoLike: false,
@@ -1113,18 +1161,24 @@ io.on('connection', (socket) => {
                 };
                 saveBotData();
             }
-            await sessions[userId].initialize(number);
+            sessions[userId] = new BotSession(userId);
         }
+        await sessions[userId].initialize(digits);
     });
 
-    socket.on('logout', async (userId) => {
-        userId = sanitizeUserId(userId);
-        if (!userId) return;
+    socket.on('logout', async (payload) => {
+        // CRITICAL: logout used to accept any userId with no proof of
+        // ownership, so any visitor could disconnect anyone else's WhatsApp.
+        // Now the owner token is mandatory.
+        const { userId: rawId, token } = normalizePayload(payload);
+        const userId = await authorize(rawId, token);
+        if (!userId) { authDenied('Logout not authorized for this session.'); return; }
         if (sessions[userId]) {
             if (sessions[userId].sock) {
                 try { await sessions[userId].sock.logout(); } catch (e) {}
             }
             await clearDbSession(userId);
+            await deleteToken(userId);
             const authPath = path.join(AUTH_DIR, userId);
             if (fs.existsSync(authPath)) fs.removeSync(authPath);
             delete sessions[userId];
