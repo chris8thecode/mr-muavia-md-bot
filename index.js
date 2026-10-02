@@ -701,143 +701,126 @@ class BotSession {
                                             // Menu is built as sections; owner/admin-only sections and lines
                                             // are only appended when the requester actually has that permission,
                                             // so regular users never even see commands they can't run.
+                                            // Style: boxed sections with ✦ bullets (KHANTHEHACKER-style layout,
+                                            // our own MR MUAVIA branding).
                                             const menuSections = [];
+                                            const mSec = (title, cmds) => {
+                                                const body = cmds.filter(Boolean).map(c => `┃ ✦ ${c}`).join('\n');
+                                                if (!body) return;
+                                                menuSections.push(
+                                                    `╭━━━〔 ⚡ *${title}* 〕━━━┈⊷\n` +
+                                                    body + '\n' +
+                                                    `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷`
+                                                );
+                                            };
 
-                                            menuSections.push(
-                                                `╭━━━〔 ${toBold("𝗢𝗪𝗡𝗘𝗥")} 〕━━━┈⊷\n` +
-                                                `┃ ⋄ ${toBold(".owner")}\n` +
-                                                `┃ ⋄ ${toBold(".ping")}\n` +
-                                                `┃ ⋄ ${toBold(".setname (name)")}\n` +
-                                                (isAdmin ? `┃ ⋄ ${toBold(".setprefix (char)")}\n` : '') +
-                                                (isAdmin ? `┃ ⋄ ${toBold(".private")}\n` : '') +
-                                                (isAdmin ? `┃ ⋄ ${toBold(".public")}\n` : '') +
-                                                (isOwner ? `┃ ⋄ ${toBold(".join (invite link)")}\n` : '') +
-                                                (isOwner ? `┃ ⋄ ${toBold(".newgc name | numbers")}\n` : '') +
-                                                (isOwner ? `┃ ⋄ ${toBold(".out")}\n` : '') +
-                                                (isOwner ? `┃ ⋄ ${toBold(".end confirm")}\n` : '') +
-                                                (isOwner ? `┃ ⋄ ${toBold(".pair (number)")}\n` : '') +
-                                                `╰━━━━━━━━━━━━━━━━━━┈⊷`
-                                            );
+                                            mSec('ᴍᴀɪɴ', [
+                                                '.menu',
+                                                '.ping',
+                                                '.runtime',
+                                                '.uptime',
+                                                '.owner',
+                                            ]);
 
-                                            menuSections.push(
-                                                `╭━━━〔 ${toBold("𝗚𝗥𝗢𝗨𝗣 𝗠𝗔𝗡𝗔𝗚𝗘𝗠𝗘𝗡𝗧")} 〕━━━┈⊷\n` +
-                                                `┃ ⋄ ${toBold(".kick (reply/number)")}\n` +
-                                                `┃ ⋄ ${toBold(".add (number)")}\n` +
-                                                `┃ ⋄ ${toBold(".promote (reply/number)")}\n` +
-                                                `┃ ⋄ ${toBold(".demote (reply/number)")}\n` +
-                                                `┃ ⋄ ${toBold(".mute / .unmute")}\n` +
-                                                `┃ ⋄ ${toBold(".lockgc / .unlockgc")}\n` +
-                                                `┃ ⋄ ${toBold(".tagall / .tagadmins / .tag")}\n` +
-                                                `┃ ⋄ ${toBold(".hidetag")}\n` +
-                                                `┃ ⋄ ${toBold(".groupstatus / .ginfo / .groupinfo")}\n` +
-                                                `┃ ⋄ ${toBold(".gcpp (reply to image)")}\n` +
-                                                `┃ ⋄ ${toBold(".updategname (name)")}\n` +
-                                                `┃ ⋄ ${toBold(".updategdesc (text)")}\n` +
-                                                `┃ ⋄ ${toBold(".link / .invite")}\n` +
-                                                `┃ ⋄ ${toBold(".revoke")}\n` +
-                                                `┃ ⋄ ${toBold(".poll Question? | Opt1 | Opt2")}\n` +
-                                                `┃ ⋄ ${toBold(".requests")}\n` +
-                                                `┃ ⋄ ${toBold(".accept / .acceptall")}\n` +
-                                                `┃ ⋄ ${toBold(".reject / .rejectall")}\n` +
-                                                `┃ ⋄ ${toBold(".delete (reply)")}\n` +
-                                                `┃ ⋄ ${toBold(".active [on/off]")}\n` +
-                                                `╰━━━━━━━━━━━━━━━━━━┈⊷`
-                                            );
+                                            mSec('ᴀɪ', [
+                                                '.ai [query]',
+                                                '.chatgpt',
+                                                '.gemini',
+                                                '.ask',
+                                                ...(isAdmin ? ['.ai on/off', '.aion', '.aioff', '.aiclear'] : []),
+                                            ]);
 
-                                            menuSections.push(
-                                                `╭━━━〔 ${toBold("𝗣𝗥𝗢𝗧𝗘𝗖𝗧𝗜𝗢𝗡")} 〕━━━┈⊷\n` +
-                                                `┃ ⋄ ${toBold(".antilink [on/off/kick]")}\n` +
-                                                `┃ ⋄ ${toBold(".antidelete [on/off]")}\n` +
-                                                `┃ ⋄ ${toBold(".anticall [on/off]")}\n` +
-                                                `┃ ⋄ ${toBold(".antistatus [on/off]")}\n` +
-                                                `┃ ⋄ ${toBold(".kickoffline [on/off]")}\n` +
-                                                `┃ ⋄ ${toBold(".vv")}\n` +
-                                                `╰━━━━━━━━━━━━━━━━━━┈⊷`
-                                            );
+                                            mSec('ᴅᴏᴡɴʟᴏᴀᴅ', [
+                                                '.tiktok (url)',
+                                                '.insta (url)',
+                                                '.facebook (url)',
+                                                '.song (name)',
+                                                '.video (name)',
+                                                '.apk (name)',
+                                                '.gdrive (url)',
+                                                '.mf (url)',
+                                                '.movie (name)',
+                                            ]);
 
-                                            menuSections.push(
-                                                `╭━━━〔 ${toBold("𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗𝗘𝗥")} 〕━━━┈⊷\n` +
-                                                `┃ ⋄ ${toBold(".insta (url)")}\n` +
-                                                `┃ ⋄ ${toBold(".facebook (url)")}\n` +
-                                                `┃ ⋄ ${toBold(".tiktok (url)")}\n` +
-                                                `┃ ⋄ ${toBold(".song (name)")}\n` +
-                                                `┃ ⋄ ${toBold(".video (name)")}\n` +
-                                                `┃ ⋄ ${toBold(".apk (name)")}\n` +
-                                                `┃ ⋄ ${toBold(".gdrive (url)")}\n` +
-                                                `┃ ⋄ ${toBold(".mf (url)")}\n` +
-                                                `╰━━━━━━━━━━━━━━━━━━┈⊷`
-                                            );
+                                            mSec('ɢʀᴏᴜᴘ', [
+                                                ...(isAdmin ? ['.kick (reply/number)', '.add (number)', '.promote (reply/number)', '.demote (reply/number)'] : []),
+                                                ...(isAdmin ? ['.mute / .unmute', '.lockgc / .unlockgc'] : []),
+                                                '.tagall / .tagadmins / .tag',
+                                                ...(isAdmin ? ['.hidetag'] : []),
+                                                '.groupstatus / .ginfo',
+                                                ...(isAdmin ? ['.gcpp (reply image)', '.updategname', '.updategdesc'] : []),
+                                                ...(isAdmin ? ['.link / .invite', '.revoke'] : []),
+                                                ...(isAdmin ? ['.poll Q? | Opt1 | Opt2'] : []),
+                                                ...(isAdmin ? ['.requests', '.accept / .acceptall', '.reject / .rejectall'] : []),
+                                                ...(isAdmin ? ['.delete (reply)', '.active [on/off]'] : []),
+                                                ...(isOwner ? ['.newgc name | numbers', '.join (link)', '.out', '.end confirm'] : []),
+                                            ]);
 
-                                            menuSections.push(
-                                                `╭━━━〔 ${toBold("𝗔𝗜 & 𝗧𝗢𝗢𝗟𝗦")} 〕━━━┈⊷\n` +
-                                                `┃ ⋄ ${toBold(".ai [on/off/query]")}\n` +
-                                                `┃ ⋄ ${toBold(".chatgpt/.gemini/.ask")}\n` +
-                                                `┃ ⋄ ${toBold(".aion / .aioff / .aiclear")}\n` +
-                                                `┃ ⋄ ${toBold(".movie (name)")}\n` +
-                                                `┃ ⋄ ${toBold(".translate (text)")}\n` +
-                                                `┃ ⋄ ${toBold(".dp")}\n` +
-                                                `┃ ⋄ ${toBold(".joke")}\n` +
-                                                `┃ ⋄ ${toBold(".meme")}\n` +
-                                                `┃ ⋄ ${toBold(".emojimix (e1+e2)")}\n` +
-                                                `┃ ⋄ ${toBold(".character (mention)")}\n` +
-                                                `┃ ⋄ ${toBold(".hack")}\n` +
-                                                `╰━━━━━━━━━━━━━━━━━━┈⊷`
-                                            );
+                                            mSec('ғᴜɴ', [
+                                                '.joke',
+                                                '.meme',
+                                                '.8ball (question)',
+                                                '.truth / .dare',
+                                                '.riddle',
+                                                '.wyr',
+                                                '.character (mention)',
+                                                '.emojimix (e1+e2)',
+                                                '.flip / .coinflip',
+                                                '.roll [NdM] / .dice',
+                                                '.dp',
+                                                '.hack',
+                                            ]);
 
-                                            menuSections.push(
-                                                `╭━━━〔 ${toBold("🕌 𝗜𝗦𝗟𝗔𝗠𝗜𝗖")} 〕━━━┈⊷\n` +
-                                                `┃ ⋄ ${toBold(".islamic [on/off/setup]")}\n` +
-                                                `┃ ⋄ ${toBold(".islamic status")}\n` +
-                                                `┃ ⋄ ${toBold(".islamic addgroup / removegroup")}\n` +
-                                                `┃ ⋄ ${toBold(".islamic groups")}\n` +
-                                                `┃ ⋄ ${toBold(".islamic hadith/quran/dua/reminder/video/prayer on/off")}\n` +
-                                                `┃ ⋄ ${toBold(".islamic schedule / times")}\n` +
-                                                `┃ ⋄ ${toBold(".islamic settime <feature> HH:MM")}\n` +
-                                                `┃ ⋄ ${toBold(".islamic test [feature]")}\n` +
-                                                `┃ ⋄ ${toBold(".islamic sources")}\n` +
-                                                `┃ ⋄ ${toBold(".islamic reset")}\n` +
-                                                `╰━━━━━━━━━━━━━━━━━━┈⊷`
-                                            );
+                                            mSec('ᴜᴛɪʟɪᴛʏ', [
+                                                '.calc (expression)',
+                                                '.morse (text)',
+                                                '.qr (text)',
+                                                '.shorturl (link) / .tinyurl',
+                                                '.wiki (topic)',
+                                                '.define (word)',
+                                                '.translate (text)',
+                                                '.github (username)',
+                                                '.channelstatus',
+                                            ]);
 
-                                            menuSections.push(
-                                                `╭━━━〔 ${toBold("𝗔𝗨𝗧𝗢 𝗥𝗘𝗣𝗟𝗜𝗘𝗦")} 〕━━━┈⊷\n` +
-                                                `┃ ⋄ ${toBold(".autoreply [on/off]")}\n` +
-                                                `┃    (Salam, Hi, Thanks, MashaAllah, etc.)\n` +
-                                                `╰━━━━━━━━━━━━━━━━━━┈⊷`
-                                            );
+                                            mSec('ɪsʟᴀᴍɪᴄ', [
+                                                '.islamic [on/off/setup]',
+                                                '.islamic status',
+                                                ...(isAdmin ? ['.islamic addgroup / removegroup', '.islamic groups'] : []),
+                                            ]);
 
-                                            menuSections.push(
-                                                `╭━━━〔 ${toBold("🛠️ 𝗨𝗧𝗜𝗟𝗜𝗧𝗬 & 𝗙𝗨𝗡")} 〕━━━┈⊷\n` +
-                                                `┃ ⋄ ${toBold(".calc (expression)")}\n` +
-                                                `┃ ⋄ ${toBold(".flip")} / ${toBold(".roll [NdM]")}\n` +
-                                                `┃ ⋄ ${toBold(".8ball (question)")}\n` +
-                                                `┃ ⋄ ${toBold(".morse (text)")}\n` +
-                                                `┃ ⋄ ${toBold(".qr (text)")} / ${toBold(".shorturl (link)")}\n` +
-                                                `┃ ⋄ ${toBold(".wiki (topic)")} / ${toBold(".define (word)")}\n` +
-                                                `┃ ⋄ ${toBold(".github (username)")} / ${toBold(".uptime")}\n` +
-                                                `┃ ⋄ ${toBold(".truth")} / ${toBold(".dare")} / ${toBold(".riddle")} / ${toBold(".wyr")}\n` +
-                                                `┃ ⋄ ${toBold(".channelstatus")}\n` +
-                                                `╰━━━━━━━━━━━━━━━━━━┈⊷`
-                                            );
+                                            mSec('ᴘʀᴏᴛᴇᴄᴛɪᴏɴ', [
+                                                ...(isAdmin ? ['.antilink [on/off]', '.antidelete [on/off]', '.anticall [on/off]', '.antistatus [on/off]', '.vv'] : []),
+                                            ]);
 
-                                            menuSections.push(
-                                                `╭━━━〔 ${toBold("𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦")} 〕━━━┈⊷\n` +
-                                                `┃ ⋄ ${toBold(".autoreacts [on/off]")}\n` +
-                                                (isOwner ? `┃ ⋄ ${toBold(".autoread [on/off]")}\n` : '') +
-                                                `┃ ⋄ ${toBold(".status [on/off/seen/like/download/system]")}\n` +
-                                                `╰━━━━━━━━━━━━━━━━━━┈⊷`
-                                            );
+                                            mSec('sᴇᴛᴛɪɴɢs', [
+                                                '.autoreply [on/off]',
+                                                '.autoreacts [on/off]',
+                                                ...(isOwner ? ['.autoread [on/off]', '.autostatus [on/off]'] : []),
+                                                '.status [seen/like]',
+                                                ...(isAdmin ? ['.setprefix (char)', '.setname (name)'] : []),
+                                                ...(isAdmin ? ['.private / .public'] : []),
+                                                ...(isOwner ? ['.pair (number)'] : []),
+                                            ]);
 
-                                            const menuText = `╭━━━〔 ${toBold(settings.botName)} 〕━━━┈⊷\n` +
-                                                           `┃ 👤 ${toBold("User:")} ${customName}\n` +
-                                                           `┃ 🤖 ${toBold("Status:")} ${toBold("Online ✅")}\n` +
-                                                           `┃ ⚙️ ${toBold("Mode:")} ${this.isPublic ? toBold('Public 🌍') : toBold('Private 🔐')}\n` +
-                                                           `┃ 💬 ${toBold(settings.welcomeMessage)}\n` +
-                                                           `╰━━━━━━━━━━━━━━━━━━┈⊷\n\n` +
-                                                           menuSections.join('\n\n') + '\n\n' +
-                                                           `🔗 ${toBold("𝗖𝗛𝗔𝗡𝗡𝗘𝗟:")}\n` +
-                                                           `> *${settings.channelUrl}*\n` +
-                                                           `⚡ ${toBold("𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬: " + settings.ownerName.toUpperCase())}`;
+                                            // Header box (KHANTHEHACKER-style info header, our branding)
+                                            const _up = Math.floor(process.uptime());
+                                            const _uh = Math.floor(_up / 3600), _um = Math.floor((_up % 3600) / 60), _us = _up % 60;
+                                            const _uptimeStr = `${_uh} hours, ${_um} minutes, ${_us} seconds`;
+                                            const _cmdCount = menuSections.reduce((n, s) => n + (s.match(/┃ ✦/g) || []).length, 0);
+                                            const menuText =
+                                                `╭━━━〔 🌟 *${settings.botName.toUpperCase()}* 🌟 〕━━━┈⊷\n` +
+                                                `┃\n` +
+                                                `┃ 👤 *ᴏᴡɴᴇʀ:* ${settings.ownerName}\n` +
+                                                `┃ ⚙️ *ᴘʀᴇғɪx:* ${this.getPrefix()}\n` +
+                                                `┃ ⏱️ *ᴜᴘᴛɪᴍᴇ:* ${_uptimeStr}\n` +
+                                                `┃ 📊 *ᴄᴏᴍᴍᴀɴᴅs:* ${_cmdCount}\n` +
+                                                `┃ 🛡️ *ᴍᴏᴅᴇ:* ${this.isPublic ? 'public' : 'private'}\n` +
+                                                `┃ 🏷️ *ᴠᴇʀsɪᴏɴ:* 2.0.0\n` +
+                                                `┃\n` +
+                                                `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷\n\n` +
+                                                menuSections.join('\n') + '\n\n' +
+                                                `> *© POWERED BY ${settings.ownerName.toUpperCase()}*`;
                                             // Resolve the real channel JID from the invite link (never guessed) so the
                                             // "View channel" context can be attached. If it can't be resolved for any
                                             // reason, menuChannelContext is just {} and the menu still sends normally.
